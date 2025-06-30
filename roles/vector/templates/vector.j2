@@ -1,0 +1,14 @@
+sources:
+  demo_logs:
+    type: "demo_logs"
+    format: "json"
+    lines:
+      - {"timestamp": "{{ ansible_date_time.iso8601 }}", "message": "Hello from {{ ansible_hostname }}"}
+
+sinks:
+  console:
+    type: "console"
+    inputs:
+      - demo_logs
+    target: "stdout"
+    format: "json"

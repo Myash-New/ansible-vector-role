@@ -1,0 +1,52 @@
+---
+- name: Verify
+  hosts: all
+  gather_facts: true
+  vars:
+    vector_config_path: /etc/vector/vector.yaml
+    expected_vector_version: "0.44.0"
+  tasks:
+    - name: Verify Vector version
+      ansible.builtin.command: vector --version
+      register: vector_version
+      changed_when: false
+      tags:
+        - version
+
+    - name: Check Vector version pattern
+      ansible.builtin.assert:
+        that: vector_version.stdout is search('vector {{ expected_vector_version }}')
+        fail_msg: "Vector version check failed. Expected pattern: 'vector {{ expected_vector_version }}'. Actual output: '{{ vector_version.stdout }}'"
+      tags:
+        - version
+
+    - name: Check Vector configuration file existence
+      ansible.builtin.stat:
+        path: "{{ vector_config_path }}"
+      register: vector_config
+      changed_when: false
+      tags:
+        - config
+
+    - name: Ensure Vector config exists
+      ansible.builtin.assert:
+        that: vector_config.stat.exists
+        fail_msg: "Vector config file does not exist at {{ vector_config_path }}"
+      tags:
+        - config
+
+    - name: Check Vector process status
+      ansible.builtin.shell: |
+        if pgrep -f "vector --config {{ vector_config_path }}"; then
+          echo "running"
+        else
+          echo "not running"
+          exit 1
+        fi
+      args:
+        executable: /bin/bash
+      changed_when: false
+      register: vector_process
+      failed_when: "'running' not in vector_process.stdout"
+      tags:
+        - process

@@ -1,0 +1,97 @@
+---
+- name: Install Vector dependencies
+  block:
+    - name: Install dependencies (Debian)
+      ansible.builtin.apt:
+        name:
+          - curl
+          - gnupg
+          - apt-transport-https
+        state: present
+        update_cache: true
+      when: ansible_distribution in ['Debian', 'Ubuntu']
+
+    - name: Install dependencies (RedHat)
+      ansible.builtin.yum:
+        name:
+          - curl
+        state: present
+        update_cache: true
+      when: ansible_distribution in ['CentOS', 'RedHat', 'OracleLinux', 'AlmaLinux', 'Fedora']
+
+- name: Add Vector repository (Debian)
+  block:
+    - name: Add Vector GPG key
+      ansible.builtin.apt_key:
+        url: "https://repositories.timber.io/public/vector/gpg.3543DB2D0A2BC4B8.key"
+        state: present
+
+    - name: Add Vector repository
+      ansible.builtin.apt_repository:
+        repo: >-
+          deb [signed-by=/usr/share/keyrings/vector.gpg]
+          https://repositories.timber.io/public/vector/deb/{{ ansible_distribution | lower }}
+          {{ ansible_distribution_release | lower }}
+          main
+        state: present
+        filename: vector
+  when: ansible_distribution in ['Debian', 'Ubuntu']
+
+- name: Install Vector package
+  block:
+    - name: Install Vector (Debian)
+      ansible.builtin.apt:
+        name: vector
+        state: present
+      when: ansible_distribution in ['Debian', 'Ubuntu']
+
+    - name: Install Vector (RedHat)
+      ansible.builtin.yum:
+        name: "https://packages.timber.io/vector/{{ vector_version }}/vector-{{ vector_version }}-1.x86_64.rpm"
+        state: present
+      when: ansible_distribution in ['CentOS', 'RedHat', 'OracleLinux', 'AlmaLinux', 'Fedora']
+  vars:
+    vector_version: "0.34.0"
+
+- name: Configure Vector
+  block:
+    - name: Create Vector config directory
+      ansible.builtin.file:
+        path: /etc/vector
+        state: directory
+        mode: "0755"
+
+    - name: Copy Vector config
+      ansible.builtin.template:
+        src: vector.toml.j2
+        dest: /etc/vector/vector.toml
+        mode: "0644"
+
+- name: Handle Vector service
+  block:
+    - name: Start Vector in foreground (containers)
+      ansible.builtin.shell: |
+        /usr/bin/vector --config /etc/vector/vector.toml &
+        echo $! > /var/run/vector.pid
+      args:
+        executable: /bin/bash
+      when: ansible_virtualization_type in ['docker', 'container']
+
+    - name: Create systemd unit for Vector
+      ansible.builtin.template:
+        src: vector.service.j2
+        dest: /etc/systemd/system/vector.service
+        mode: "0644"
+      when: ansible_virtualization_type not in ['docker', 'container']
+
+    - name: Reload systemd after creating unit
+      ansible.builtin.systemd:
+        daemon_reload: true
+      when: ansible_virtualization_type not in ['docker', 'container']
+
+    - name: Start and enable Vector service
+      ansible.builtin.systemd:
+        name: vector
+        state: started
+        enabled: true
+      when: ansible_virtualization_type not in ['docker', 'container']

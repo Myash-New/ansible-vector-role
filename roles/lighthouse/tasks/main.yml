@@ -1,0 +1,83 @@
+---
+- name: Install gnupg package
+  become: true
+  ansible.builtin.apt:
+    name: gnupg
+    state: present
+    update_cache: yes
+
+- name: Add NGINX GPG key
+  become: true
+  ansible.builtin.apt_key:
+    url: https://nginx.org/keys/nginx_signing.key
+    state: present
+
+- name: Add NGINX repository
+  become: true
+  ansible.builtin.apt_repository:
+    repo: "deb https://nginx.org/packages/debian  bullseye nginx"
+    state: present
+    filename: nginx
+
+- name: Update apt cache
+  become: true
+  ansible.builtin.apt:
+    update_cache: true
+
+- name: Install Git and Nginx
+  become: true
+  ansible.builtin.apt:
+    name:
+      - git
+      - nginx
+    state: present
+
+- name: Configure nginx.conf
+  become: true
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+    mode: 0644
+  notify: Reload-nginx
+
+- name: Git check
+  become: true
+  ansible.builtin.package:
+    name: git
+    state: present
+
+- name: Create systemd unit for Nginx if missing
+  become: true
+  ansible.builtin.template:
+    src: nginx.service.j2
+    dest: /etc/systemd/system/nginx.service
+    mode: 0644
+  register: nginx_service_created
+
+- name: Reload systemd after creating unit
+  become: true
+  ansible.builtin.systemd:
+    daemon_reload: yes
+  when: nginx_service_created.changed
+
+- name: Enable and start Nginx
+  become: true
+  ansible.builtin.service:
+    name: nginx
+    state: started
+    enabled: yes
+
+- name: Lighthouse | Clone from git on remote server
+  command: git clone https://github.com/VKCOM/lighthouse.git  /usr/share/nginx/html/lighthouse
+  args:
+    creates: /usr/share/nginx/html/lighthouse/.git
+
+- name: Lighthouse | Create ligthouse config
+  become: true
+  ansible.builtin.template:
+    src: lighthouse_nginx.conf.j2
+    dest: /etc/nginx/conf.d/default.conf
+    mode: "0644"
+  notify: Reload-nginx
+  tags:
+    - lighthouse

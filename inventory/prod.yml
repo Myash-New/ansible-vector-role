@@ -1,0 +1,19 @@
+---
+clickhouse:
+  hosts:
+    clickhouse:
+      ansible_host: 158.160.181.167
+      ansible_user: ansible
+      ansible_ssh_private_key_file: "/home/myash/.ssh/id_rsa"
+vector:
+  hosts:
+    vector:
+      ansible_host: 158.160.185.73
+      ansible_user: ansible
+      ansible_ssh_private_key_file: "/home/myash/.ssh/id_rsa"
+lighthouse:
+  hosts:
+   lighthouse:
+      ansible_host: 84.201.171.99
+      ansible_user: ansible
+      ansible_ssh_private_key_file: "/home/myash/.ssh/id_rsa"
