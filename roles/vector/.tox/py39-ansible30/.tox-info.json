@@ -1,6 +1,0 @@
-{
-  "ToxEnv": {
-    "name": "py39-ansible30",
-    "type": "VirtualEnvRunner"
-  }
-}
